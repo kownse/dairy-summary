@@ -1,6 +1,9 @@
 # 环境变量文件
 .env
 
+# Claude API Key
+claude_api
+
 # Google API凭证
 credentials.json
 token.json
