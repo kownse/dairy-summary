@@ -19,12 +19,14 @@ from googleapiclient.errors import HttpError
 from anthropic import Anthropic
 from dotenv import load_dotenv
 
+# 加载环境变量
+load_dotenv()
 
 # Google Drive API 权限范围
 SCOPES = ['https://www.googleapis.com/auth/drive.readonly']
 
-# Google Drive 文件夹 ID（从URL中提取）
-FOLDER_ID = '1C9IymUfrsp_vbijFraI_beogFDsqlp05'
+# Google Drive 文件夹 ID（从环境变量读取）
+FOLDER_ID = os.getenv('FOLDER_ID')
 
 # 输出目录
 OUTPUT_DIR = Path('output')
@@ -970,12 +972,16 @@ def main():
     print("=" * 60)
     print()
 
-    # 1. 加载环境变量并检查API密钥
-    load_dotenv()
+    # 1. 检查环境变量
     api_key = os.getenv('ANTHROPIC_API_KEY')
     if not api_key:
         print("错误: 未找到ANTHROPIC_API_KEY环境变量")
         print("请在.env文件中设置您的Claude API密钥")
+        return
+
+    if not FOLDER_ID:
+        print("错误: 未找到FOLDER_ID环境变量")
+        print("请在.env文件中设置Google Drive文件夹ID")
         return
 
     # 2. 检查缓存并选择处理模式
