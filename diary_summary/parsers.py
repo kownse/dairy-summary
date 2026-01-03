@@ -1,6 +1,6 @@
 """
-路径和日期解析工具模块
-提供文件路径解析、年月提取、分组和排序功能
+Path and Date Parsing Utilities Module
+Provides file path parsing, year/month extraction, grouping, and sorting functions
 """
 import re
 from collections import defaultdict
@@ -8,9 +8,9 @@ from collections import defaultdict
 
 def natural_sort_key(text):
     """
-    生成用于自然排序的key
-    将字符串中的数字部分转换为整数，以实现正确的数字排序
-    例如: "2024年1月" < "2024年2月" < "2024年10月"
+    Generate key for natural sorting
+    Converts numeric parts in strings to integers for correct numerical sorting
+    Example: "2024年1月" < "2024年2月" < "2024年10月"
     """
     def convert(part):
         return int(part) if part.isdigit() else part.lower()
@@ -19,27 +19,27 @@ def natural_sort_key(text):
 
 
 def extract_year_from_path(file_path):
-    """从文件路径中提取年份
+    """Extract year from file path
 
-    支持的格式：
+    Supported formats:
     - 2024年/2024年1月/2024年1月1日
     - 2024/01/2024-01-01
-    - 其他包含年份的路径
+    - Other paths containing year
     """
-    # 尝试匹配各种常见的日期格式
+    # Try to match various common date formats
     patterns = [
-        r'(\d{4})年',  # 年份后跟"年"字
-        r'^(\d{4})/',  # 路径开头的四位数年份
-        r'/(\d{4})/',  # 路径中间的四位数年份
-        r'(\d{4})[-_]',  # 年份后跟分隔符
-        r'(\d{4})',  # 任何四位数年份
+        r'(\d{4})年',  # Year followed by "年"
+        r'^(\d{4})/',  # Four-digit year at path beginning
+        r'/(\d{4})/',  # Four-digit year in middle of path
+        r'(\d{4})[-_]',  # Year followed by separator
+        r'(\d{4})',  # Any four-digit year
     ]
 
     for pattern in patterns:
         match = re.search(pattern, file_path)
         if match:
             year = int(match.group(1))
-            # 验证年份是否合理（1900-2100）
+            # Validate year is reasonable (1900-2100)
             if 1900 <= year <= 2100:
                 return year
 
@@ -47,19 +47,19 @@ def extract_year_from_path(file_path):
 
 
 def extract_year_month_from_path(file_path):
-    """从文件路径中提取年份和月份
+    """Extract year and month from file path
 
-    支持的格式：
+    Supported formats:
     - 2024年/2024年1月/2024年1月1日 -> (2024, 1)
     - 2024/01/2024-01-01 -> (2024, 1)
     - 2024年1月 -> (2024, 1)
 
-    返回: (year, month) 元组，如果无法提取则返回 (None, None)
+    Returns: (year, month) tuple, or (None, None) if unable to extract
     """
-    # 优先匹配"年月"格式
+    # Prioritize matching "year-month" format
     patterns = [
         r'(\d{4})年(\d{1,2})月',  # 2024年1月
-        r'(\d{4})[/-](\d{1,2})[/-]',  # 2024/01/ 或 2024-01-
+        r'(\d{4})[/-](\d{1,2})[/-]',  # 2024/01/ or 2024-01-
         r'(\d{4})年/(\d{1,2})月',  # 2024年/1月
     ]
 
@@ -68,11 +68,11 @@ def extract_year_month_from_path(file_path):
         if match:
             year = int(match.group(1))
             month = int(match.group(2))
-            # 验证年份和月份是否合理
+            # Validate year and month are reasonable
             if 1900 <= year <= 2100 and 1 <= month <= 12:
                 return (year, month)
 
-    # 如果只能提取年份，返回 (year, None)
+    # If only year can be extracted, return (year, None)
     year = extract_year_from_path(file_path)
     if year:
         return (year, None)
@@ -81,17 +81,17 @@ def extract_year_month_from_path(file_path):
 
 
 def group_files_by_year(files):
-    """按年份分组文件（不读取内容）"""
+    """Group files by year (without reading content)"""
     files_by_year = defaultdict(list)
 
     for file in files:
         filename = file['name']
         file_path = file.get('path', filename)
 
-        # 从路径中提取年份
+        # Extract year from path
         year = extract_year_from_path(file_path)
         if year is None:
-            print(f"警告: 无法从路径 '{file_path}' 中提取年份，跳过该文件")
+            print(f"Warning: Unable to extract year from path '{file_path}', skipping file")
             continue
 
         files_by_year[year].append(file)
@@ -100,9 +100,9 @@ def group_files_by_year(files):
 
 
 def group_files_by_year_month(files):
-    """按年月分组文件（不读取内容）
+    """Group files by year and month (without reading content)
 
-    返回: 嵌套字典 {year: {month: [files]}}
+    Returns: Nested dictionary {year: {month: [files]}}
     """
     files_by_year_month = defaultdict(lambda: defaultdict(list))
 
@@ -110,14 +110,14 @@ def group_files_by_year_month(files):
         filename = file['name']
         file_path = file.get('path', filename)
 
-        # 从路径中提取年份和月份
+        # Extract year and month from path
         year, month = extract_year_month_from_path(file_path)
         if year is None:
-            print(f"警告: 无法从路径 '{file_path}' 中提取年份，跳过该文件")
+            print(f"Warning: Unable to extract year from path '{file_path}', skipping file")
             continue
 
         if month is None:
-            print(f"警告: 无法从路径 '{file_path}' 中提取月份，跳过该文件")
+            print(f"Warning: Unable to extract month from path '{file_path}', skipping file")
             continue
 
         files_by_year_month[year][month].append(file)

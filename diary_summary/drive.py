@@ -1,6 +1,6 @@
 """
-Google Drive 操作模块
-处理 Google Drive API 认证、文件列表和内容获取
+Google Drive Operations Module
+Handles Google Drive API authentication, file listing, and content retrieval
 """
 import os
 from google.auth.transport.requests import Request
@@ -14,27 +14,27 @@ from .parsers import natural_sort_key
 
 
 def get_google_credentials():
-    """获取Google API认证凭证"""
+    """Get Google API authentication credentials"""
     creds = None
 
-    # 检查是否存在token.json
+    # Check if token.json exists
     if os.path.exists('token.json'):
         creds = Credentials.from_authorized_user_file('token.json', SCOPES)
 
-    # 如果没有有效凭证，则进行登录
+    # If no valid credentials, perform login
     if not creds or not creds.valid:
         if creds and creds.expired and creds.refresh_token:
             creds.refresh(Request())
         else:
             if not os.path.exists('credentials.json'):
                 raise FileNotFoundError(
-                    "找不到credentials.json文件。请按照README.md中的说明创建Google Cloud项目并下载凭证。"
+                    "credentials.json file not found. Please follow instructions in README.md to create a Google Cloud project and download credentials."
                 )
             flow = InstalledAppFlow.from_client_secrets_file(
                 'credentials.json', SCOPES)
             creds = flow.run_local_server(port=0)
 
-        # 保存凭证供下次使用
+        # Save credentials for next use
         with open('token.json', 'w') as token:
             token.write(creds.to_json())
 
@@ -42,7 +42,7 @@ def get_google_credentials():
 
 
 def get_folder_path(service, file_id, visited=None):
-    """获取文件或文件夹的完整路径"""
+    """Get the full path of a file or folder"""
     if visited is None:
         visited = set()
 
@@ -72,11 +72,11 @@ def get_folder_path(service, file_id, visited=None):
 
 
 def list_all_files_recursively(service, folder_id, current_path=""):
-    """递归列出文件夹及其子文件夹中的所有Google Docs文件"""
+    """Recursively list all Google Docs files in a folder and its subfolders"""
     all_files = []
 
     try:
-        # 获取当前文件夹中的所有项目（文件和子文件夹）
+        # Get all items (files and subfolders) in current folder
         query = f"'{folder_id}' in parents and trashed=false"
 
         results = service.files().list(
@@ -87,20 +87,20 @@ def list_all_files_recursively(service, folder_id, current_path=""):
 
         items = results.get('files', [])
 
-        # 使用自然排序对文件和文件夹进行排序
+        # Sort files and folders using natural sorting
         items.sort(key=lambda x: natural_sort_key(x['name']))
 
         for item in items:
             item_name = item['name']
             item_path = f"{current_path}/{item_name}" if current_path else item_name
 
-            # 如果是文件夹，递归处理
+            # If it's a folder, process recursively
             if item['mimeType'] == 'application/vnd.google-apps.folder':
-                print(f"正在扫描文件夹: {item_path}")
+                print(f"Scanning folder: {item_path}")
                 sub_files = list_all_files_recursively(service, item['id'], item_path)
                 all_files.extend(sub_files)
 
-            # 如果是Google Docs文件，添加到列表
+            # If it's a Google Docs file, add to list
             elif item['mimeType'] == 'application/vnd.google-apps.document':
                 item['path'] = item_path
                 all_files.append(item)
@@ -108,14 +108,14 @@ def list_all_files_recursively(service, folder_id, current_path=""):
         return all_files
 
     except HttpError as error:
-        print(f"获取文件列表时发生错误: {error}")
+        print(f"Error occurred while fetching file list: {error}")
         return all_files
 
 
 def get_document_content(service, file_id):
-    """获取Google Docs文档的纯文本内容"""
+    """Get plain text content of a Google Docs document"""
     try:
-        # 使用export方法导出为纯文本
+        # Use export method to export as plain text
         request = service.files().export_media(
             fileId=file_id,
             mimeType='text/plain'
@@ -124,5 +124,5 @@ def get_document_content(service, file_id):
         return content.decode('utf-8')
 
     except HttpError as error:
-        print(f"获取文档内容时发生错误: {error}")
+        print(f"Error occurred while fetching document content: {error}")
         return ""

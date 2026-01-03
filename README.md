@@ -1,92 +1,92 @@
-# 日记汇总工具
+# Diary Summary Tool
 
-这个Python脚本从Google Drive中读取日记文档，按年份组织，并使用AI生成年度摘要。
+This Python script reads diary documents from Google Drive, organizes them by year, and generates annual summaries using AI.
 
-## 功能
+## Features
 
-- 从指定的Google Drive文件夹中获取所有Google Docs日记文件
-- 从文件名中提取年份信息
-- 按年份组织日记内容
-- 使用Claude API为每年的日记生成智能摘要
-- 将摘要保存到文本文件
+- Fetches all Google Docs diary files from a specified Google Drive folder
+- Extracts year information from file names
+- Organizes diary content by year
+- Generates intelligent summaries for each year's diaries using Claude API
+- Saves summaries to text files
 
-## 前置要求
+## Prerequisites
 
-### 1. 设置Google Cloud项目和API凭证
+### 1. Set Up Google Cloud Project and API Credentials
 
-#### 步骤1：创建Google Cloud项目
+#### Step 1: Create a Google Cloud Project
 
-1. 访问 [Google Cloud Console](https://console.cloud.google.com/)
-2. 点击顶部的项目选择器，然后点击"新建项目"
-3. 输入项目名称（如"diary-summary"），点击"创建"
+1. Visit [Google Cloud Console](https://console.cloud.google.com/)
+2. Click the project selector at the top, then click "New Project"
+3. Enter a project name (e.g., "diary-summary"), then click "Create"
 
-#### 步骤2：启用Google Drive API
+#### Step 2: Enable Google Drive API
 
-1. 在项目中，前往"API和服务" > "库"
-2. 搜索"Google Drive API"
-3. 点击进入，然后点击"启用"
-4. 同样搜索并启用"Google Docs API"
+1. In your project, go to "APIs & Services" > "Library"
+2. Search for "Google Drive API"
+3. Click on it, then click "Enable"
+4. Similarly, search for and enable "Google Docs API"
 
-#### 步骤3：创建OAuth 2.0凭证
+#### Step 3: Create OAuth 2.0 Credentials
 
-1. 前往"API和服务" > "凭据"
-2. 点击"创建凭据" > "OAuth客户端ID"
-3. 如果提示配置同意屏幕，选择"外部"用户类型，填写基本信息
-4. 应用类型选择"桌面应用"
-5. 输入名称（如"Diary Summary App"），点击"创建"
-6. 下载凭证JSON文件，将其重命名为 `credentials.json`
-7. 将 `credentials.json` 放在本项目的根目录
+1. Go to "APIs & Services" > "Credentials"
+2. Click "Create Credentials" > "OAuth client ID"
+3. If prompted to configure the consent screen, select "External" user type and fill in basic information
+4. Select "Desktop app" as the application type
+5. Enter a name (e.g., "Diary Summary App"), then click "Create"
+6. Download the credentials JSON file and rename it to `credentials.json`
+7. Place `credentials.json` in the root directory of this project
 
-### 2. 获取Claude API密钥
+### 2. Obtain Claude API Key
 
-1. 访问 [Anthropic Console](https://console.anthropic.com/)
-2. 注册或登录账号
-3. 前往"API Keys"页面
-4. 创建新的API密钥
-5. 复制API密钥，妥善保存
+1. Visit [Anthropic Console](https://console.anthropic.com/)
+2. Register or log in to your account
+3. Go to the "API Keys" page
+4. Create a new API key
+5. Copy the API key and save it securely
 
-### 3. 配置环境变量
+### 3. Configure Environment Variables
 
-创建 `.env` 文件在项目根目录：
+Create a `.env` file in the project root directory:
 
 ```
 ANTHROPIC_API_KEY=your_api_key_here
 ```
 
-将 `your_api_key_here` 替换为您的Claude API密钥。
+Replace `your_api_key_here` with your Claude API key.
 
-## 安装依赖
+## Install Dependencies
 
 ```bash
 pip install -r requirements.txt
 ```
 
-## 使用方法
+## Usage
 
-1. 确保 `credentials.json` 和 `.env` 文件已正确配置
-2. 运行脚本：
+1. Ensure `credentials.json` and `.env` files are properly configured
+2. Run the script:
 
 ```bash
 python diary_summary.py
 ```
 
-3. 首次运行时，会打开浏览器要求您授权访问Google Drive
-4. 授权后，脚本会：
-   - 从指定的Google Drive文件夹获取所有日记文件
-   - 按年份组织内容
-   - 为每年生成AI摘要
-   - 将结果保存到 `output/` 目录下的文本文件中
+3. On first run, a browser will open requesting authorization to access Google Drive
+4. After authorization, the script will:
+   - Fetch all diary files from the specified Google Drive folder
+   - Organize content by year
+   - Generate AI summaries for each year
+   - Save results to text files in the `output/` directory
 
-## 输出格式
+## Output Format
 
-脚本会在 `output/` 目录下创建按年份命名的文本文件，例如：
+The script creates text files named by year in the `output/` directory, for example:
 - `output/2024_summary.txt`
 - `output/2023_summary.txt`
 
-每个文件包含该年度所有日记的AI生成摘要。
+Each file contains an AI-generated summary of all diaries for that year.
 
-## 注意事项
+## Notes
 
-- 首次运行时会生成 `token.json` 文件，用于存储授权令牌
-- 不要将 `credentials.json`、`token.json` 和 `.env` 文件提交到版本控制系统
-- Google Drive文件夹ID已在代码中硬编码，如需更改，请修改 `diary_summary.py` 中的 `FOLDER_ID` 变量
+- On first run, a `token.json` file will be generated to store authorization tokens
+- Do not commit `credentials.json`, `token.json`, and `.env` files to version control
+- The Google Drive folder ID is hardcoded in the code. To change it, modify the `FOLDER_ID` variable in `diary_summary.py`

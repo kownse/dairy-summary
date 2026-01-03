@@ -1,6 +1,6 @@
 """
-AI 摘要生成模块
-处理 Claude API 调用和摘要生成逻辑
+AI Summary Generation Module
+Handles Claude API calls and summary generation logic
 """
 import re
 import time
@@ -8,17 +8,17 @@ from .config import CLAUDE_MODEL, MAX_TOKENS
 
 
 def estimate_tokens(text):
-    """粗略估算文本的token数量（中文按字符计算，英文按单词计算）"""
-    # 粗略估算：中文1个字符约1个token，英文1个单词约1.3个token
+    """Roughly estimate the token count of text (Chinese by character, English by word)"""
+    # Rough estimate: 1 Chinese character ≈ 1 token, 1 English word ≈ 1.3 tokens
     chinese_chars = len(re.findall(r'[\u4e00-\u9fff]', text))
     english_words = len(re.findall(r'[a-zA-Z]+', text))
     return chinese_chars + int(english_words * 1.3)
 
 
 def split_diaries_into_batches(diaries, max_tokens=25000):
-    """将日记分批，确保每批不超过最大token限制
+    """Split diaries into batches, ensuring each batch does not exceed max token limit
 
-    默认25,000 tokens是为了符合速率限制（每分钟30,000 tokens）
+    Default 25,000 tokens is to comply with rate limits (30,000 tokens per minute)
     """
     batches = []
     current_batch = []
@@ -28,7 +28,7 @@ def split_diaries_into_batches(diaries, max_tokens=25000):
         diary_content = f"=== {diary.get('path', diary['filename'])} ===\n{diary['content']}"
         diary_tokens = estimate_tokens(diary_content)
 
-        # 如果当前批次加上新日记会超限，则开始新批次
+        # If adding the new diary to current batch would exceed limit, start a new batch
         if current_tokens + diary_tokens > max_tokens and current_batch:
             batches.append(current_batch)
             current_batch = [diary]
@@ -37,7 +37,7 @@ def split_diaries_into_batches(diaries, max_tokens=25000):
             current_batch.append(diary)
             current_tokens += diary_tokens
 
-    # 添加最后一批
+    # Add the last batch
     if current_batch:
         batches.append(current_batch)
 
@@ -45,7 +45,7 @@ def split_diaries_into_batches(diaries, max_tokens=25000):
 
 
 def call_claude_with_retry(anthropic_client, prompt, max_retries=3):
-    """调用Claude API，带有重试机制处理速率限制"""
+    """Call Claude API with retry mechanism to handle rate limits"""
     for attempt in range(max_retries):
         try:
             message = anthropic_client.messages.create(
@@ -60,42 +60,42 @@ def call_claude_with_retry(anthropic_client, prompt, max_retries=3):
         except Exception as error:
             error_str = str(error)
 
-            # 如果是速率限制错误
+            # If it's a rate limit error
             if "rate_limit_error" in error_str or "429" in error_str:
                 if attempt < max_retries - 1:
-                    wait_time = (attempt + 1) * 30  # 30秒、60秒、90秒
-                    print(f"  遇到速率限制，等待 {wait_time} 秒后重试...")
+                    wait_time = (attempt + 1) * 30  # 30s, 60s, 90s
+                    print(f"  Encountered rate limit, waiting {wait_time} seconds before retry...")
                     time.sleep(wait_time)
                     continue
                 else:
-                    raise Exception(f"超过最大重试次数: {error}")
+                    raise Exception(f"Exceeded maximum retries: {error}")
 
-            # 其他错误直接抛出
+            # Raise other errors directly
             raise error
 
 
 def generate_monthly_summary(year, month, diaries, anthropic_client):
-    """使用Claude API为指定月份的日记生成摘要
+    """Generate a summary for diaries of a specific month using Claude API
 
-    参数:
-        year: 年份
-        month: 月份
-        diaries: 该月的日记列表
-        anthropic_client: Claude API客户端
+    Args:
+        year: Year
+        month: Month
+        diaries: List of diaries for the month
+        anthropic_client: Claude API client
 
-    返回:
-        月度摘要文本
+    Returns:
+        Monthly summary text
     """
-    print(f"正在为 {year} 年 {month} 月生成AI摘要...")
+    print(f"Generating AI summary for {year} Year {month} Month...")
 
-    # 拼接所有日记内容
+    # Concatenate all diary content
     total_content = "\n\n".join([
         f"=== {diary.get('path', diary['filename'])} ===\n{diary['content']}"
         for diary in diaries
     ])
 
     total_tokens = estimate_tokens(total_content)
-    print(f"  约 {total_tokens:,} tokens，{len(diaries)} 篇日记")
+    print(f"  Approximately {total_tokens:,} tokens, {len(diaries)} diary entries")
 
     try:
         prompt = f"""请为以下{year}年{month}月的日记内容生成摘要。
@@ -115,30 +115,30 @@ def generate_monthly_summary(year, month, diaries, anthropic_client):
 请生成月度摘要："""
 
         summary = call_claude_with_retry(anthropic_client, prompt)
-        time.sleep(2)  # 请求间隔，避免速率限制
+        time.sleep(2)  # Request interval to avoid rate limits
         return summary
 
     except Exception as error:
-        print(f"生成月度摘要时发生错误: {error}")
-        return f"生成摘要失败: {str(error)}"
+        print(f"Error occurred while generating monthly summary: {error}")
+        return f"Failed to generate summary: {str(error)}"
 
 
 def generate_yearly_summary(year, diaries, anthropic_client):
-    """使用Claude API为指定年份的日记生成摘要（支持分批处理）"""
+    """Generate a summary for diaries of a specific year using Claude API (supports batch processing)"""
 
-    print(f"正在为 {year} 年生成AI摘要...")
+    print(f"Generating AI summary for {year} Year...")
 
-    # 估算总token数
+    # Estimate total token count
     total_content = "\n\n".join([
         f"=== {diary.get('path', diary['filename'])} ===\n{diary['content']}"
         for diary in diaries
     ])
     total_tokens = estimate_tokens(total_content)
 
-    print(f"  总计约 {total_tokens:,} tokens，{len(diaries)} 篇日记")
+    print(f"  Total approximately {total_tokens:,} tokens, {len(diaries)} diary entries")
 
     try:
-        # 如果内容不超过速率限制，可以在合理时间内完成
+        # If content doesn't exceed rate limit, can be completed in reasonable time
         if total_tokens < 25000:
             prompt = f"""请为以下{year}年的日记内容生成一个全面的年度摘要。
 
@@ -157,30 +157,30 @@ def generate_yearly_summary(year, diaries, anthropic_client):
 请生成年度摘要："""
 
             summary = call_claude_with_retry(anthropic_client, prompt)
-            time.sleep(2)  # 请求间隔，避免速率限制
+            time.sleep(2)  # Request interval to avoid rate limits
             return summary
 
-        # 内容过长，需要分批处理
+        # Content too long, needs batch processing
         else:
-            print(f"  内容较多，将分批处理（每批<25,000 tokens）...")
+            print(f"  Content is large, will process in batches (each batch <25,000 tokens)...")
             batches = split_diaries_into_batches(diaries, max_tokens=25000)
-            print(f"  分为 {len(batches)} 批处理")
-            print(f"  注意：由于API速率限制（每分钟30,000 tokens），批次间需要等待65秒")
+            print(f"  Split into {len(batches)} batches")
+            print(f"  Note: Due to API rate limits (30,000 tokens per minute), need to wait 65 seconds between batches")
 
             batch_summaries = []
 
-            # 为每批生成摘要
+            # Generate summary for each batch
             for i, batch in enumerate(batches, 1):
-                print(f"  处理第 {i}/{len(batches)} 批 ({len(batch)} 篇日记)...")
+                print(f"  Processing batch {i}/{len(batches)} ({len(batch)} diary entries)...")
 
                 batch_content = "\n\n".join([
                     f"=== {diary.get('path', diary['filename'])} ===\n{diary['content']}"
                     for diary in batch
                 ])
 
-                # 显示当前批次的token估算
+                # Display token estimate for current batch
                 batch_tokens = estimate_tokens(batch_content)
-                print(f"    约 {batch_tokens:,} tokens")
+                print(f"    Approximately {batch_tokens:,} tokens")
 
                 prompt = f"""请为以下{year}年的部分日记内容生成摘要。
 
@@ -200,17 +200,17 @@ def generate_yearly_summary(year, diaries, anthropic_client):
                 batch_summary = call_claude_with_retry(anthropic_client, prompt)
                 batch_summaries.append(batch_summary)
 
-                # 批次间延迟65秒，确保不超过每分钟30,000 tokens的速率限制
+                # Delay 65 seconds between batches to ensure rate limit of 30,000 tokens per minute is not exceeded
                 if i < len(batches):
                     wait_time = 65
-                    print(f"    等待 {wait_time} 秒以避免速率限制...")
+                    print(f"    Waiting {wait_time} seconds to avoid rate limits...")
                     time.sleep(wait_time)
 
-            # 合并所有批次摘要，生成最终年度摘要
-            print(f"  合并所有批次摘要，生成最终年度总结...")
+            # Merge all batch summaries to generate final yearly summary
+            print(f"  Merging all batch summaries to generate final yearly summary...")
 
             combined_summaries = "\n\n".join([
-                f"【第{i}部分摘要】\n{summary}"
+                f"【Part {i} Summary】\n{summary}"
                 for i, summary in enumerate(batch_summaries, 1)
             ])
 
@@ -237,30 +237,30 @@ def generate_yearly_summary(year, diaries, anthropic_client):
             return final_summary
 
     except Exception as error:
-        print(f"生成摘要时发生错误: {error}")
-        return f"生成摘要失败: {str(error)}"
+        print(f"Error occurred while generating summary: {error}")
+        return f"Failed to generate summary: {str(error)}"
 
 
 def generate_yearly_summary_from_monthly(year, monthly_summaries, anthropic_client):
-    """基于月度摘要生成年度总结，包括周期性心理活动分析
+    """Generate yearly summary based on monthly summaries, including periodic psychological pattern analysis
 
-    参数:
-        year: 年份
-        monthly_summaries: 字典 {month: summary_text}
-        anthropic_client: Claude API客户端
+    Args:
+        year: Year
+        monthly_summaries: Dictionary {month: summary_text}
+        anthropic_client: Claude API client
 
-    返回:
-        年度总结文本
+    Returns:
+        Yearly summary text
     """
-    print(f"正在为 {year} 年生成年度总结（基于月度摘要）...")
+    print(f"Generating yearly summary for {year} Year (based on monthly summaries)...")
 
-    # 按月份顺序组织摘要
+    # Organize summaries in month order
     combined_summaries = ""
     for month in sorted(monthly_summaries.keys()):
-        combined_summaries += f"\n\n【{year}年{month}月】\n{monthly_summaries[month]}"
+        combined_summaries += f"\n\n【{year} Year {month} Month】\n{monthly_summaries[month]}"
 
     total_tokens = estimate_tokens(combined_summaries)
-    print(f"  月度摘要总计约 {total_tokens:,} tokens")
+    print(f"  Monthly summaries total approximately {total_tokens:,} tokens")
 
     try:
         prompt = f"""以下是{year}年每个月的日记摘要，请基于这些月度摘要生成一个完整的年度总结。
@@ -287,5 +287,5 @@ def generate_yearly_summary_from_monthly(year, monthly_summaries, anthropic_clie
         return summary
 
     except Exception as error:
-        print(f"生成年度总结时发生错误: {error}")
-        return f"生成年度总结失败: {str(error)}"
+        print(f"Error occurred while generating yearly summary: {error}")
+        return f"Failed to generate yearly summary: {str(error)}"

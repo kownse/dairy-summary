@@ -1,6 +1,6 @@
 """
-流程编排模块
-协调各个模块完成完整的日记摘要生成流程
+Workflow Orchestration Module
+Coordinates all modules to complete the full diary summary generation workflow
 """
 import os
 from collections import defaultdict
@@ -18,18 +18,18 @@ from .storage import (
 
 
 def read_year_diaries_from_drive(year, files, drive_service):
-    """从Google Drive读取指定年份的所有日记"""
+    """Read all diaries for a specified year from Google Drive"""
     diaries = []
 
-    print(f"从Google Drive读取 {year} 年的日记...")
+    print(f"Reading diaries for year {year} from Google Drive...")
     for file in files:
         filename = file['name']
         file_id = file['id']
         file_path = file.get('path', filename)
 
-        print(f"  正在读取: {file_path}")
+        print(f"  Reading: {file_path}")
 
-        # 获取文档内容
+        # Get document content
         content = get_document_content(drive_service, file_id)
 
         if content:
@@ -41,20 +41,20 @@ def read_year_diaries_from_drive(year, files, drive_service):
                 'modified_time': file.get('modifiedTime', '')
             })
 
-    # 按照路径进行自然排序
+    # Sort by path using natural sort order
     diaries.sort(key=lambda x: natural_sort_key(x['path']))
 
     return diaries
 
 
 def read_diaries_from_drive_for_month(drive_service, files):
-    """从Google Drive读取指定文件列表的内容
+    """Read content from Google Drive for a specified list of files
 
-    参数:
-        drive_service: Google Drive服务对象
-        files: 文件列表
+    Args:
+        drive_service: Google Drive service object
+        files: List of files
 
-    返回: 日记列表
+    Returns: List of diary entries
     """
     diaries = []
     for file in files:
@@ -62,7 +62,7 @@ def read_diaries_from_drive_for_month(drive_service, files):
         file_id = file['id']
         file_path = file.get('path', filename)
 
-        print(f"    正在读取: {file_path}")
+        print(f"    Reading: {file_path}")
         content = get_document_content(drive_service, file_id)
 
         if content:
@@ -74,97 +74,97 @@ def read_diaries_from_drive_for_month(drive_service, files):
                 'modified_time': file.get('modifiedTime', '')
             })
 
-    # 按照路径进行自然排序
+    # Sort by path using natural sort order
     diaries.sort(key=lambda x: natural_sort_key(x['path']))
     return diaries
 
 
 def load_diaries_from_drive():
-    """从Google Drive扫描并加载日记
+    """Scan and load diaries from Google Drive
 
-    返回: (diaries_by_year, diaries_by_year_month) 元组
+    Returns: Tuple of (diaries_by_year, diaries_by_year_month)
     """
-    print("\n1. 正在连接Google Drive...")
+    print("\n1. Connecting to Google Drive...")
     creds = get_google_credentials()
     drive_service = build('drive', 'v3', credentials=creds)
 
-    print("2. 正在递归扫描文件夹及子文件夹...")
+    print("2. Recursively scanning folders and subfolders...")
     files = list_all_files_recursively(drive_service, FOLDER_ID)
 
     if not files:
-        print("没有找到任何文件，程序退出")
+        print("No files found, exiting program")
         return None, None
 
-    print(f"\n总共找到 {len(files)} 个Google Docs文件")
+    print(f"\nTotal of {len(files)} Google Docs files found")
 
-    # 按年月分组文件
-    print(f"\n3. 正在按年月分组文件...")
+    # Group files by year and month
+    print(f"\n3. Grouping files by year and month...")
     files_by_year_month = group_files_by_year_month(files)
 
     if not files_by_year_month:
-        print("没有找到任何可处理的文件，程序退出")
+        print("No processable files found, exiting program")
         return None, None
 
     total_months = sum(len(months) for months in files_by_year_month.values())
-    print(f"共找到 {len(files_by_year_month)} 个年份，{total_months} 个月的日记")
+    print(f"Found diaries for {len(files_by_year_month)} years, {total_months} months")
 
-    # 读取每个月的日记内容
-    print(f"\n4. 正在读取日记内容...")
+    # Read diary content for each month
+    print(f"\n4. Reading diary content...")
 
     diaries_by_year = {}
     diaries_by_year_month = defaultdict(dict)
 
     for year in sorted(files_by_year_month.keys()):
-        print(f"\n处理 {year} 年...")
+        print(f"\nProcessing year {year}...")
 
         for month in sorted(files_by_year_month[year].keys()):
-            print(f"  处理 {month} 月...")
+            print(f"  Processing month {month}...")
             files = files_by_year_month[year][month]
 
-            # 读取该月的日记
+            # Read diaries for this month
             diaries = read_diaries_from_drive_for_month(drive_service, files)
 
             if diaries:
                 diaries_by_year_month[year][month] = diaries
 
-                # 同时更新年度日记列表
+                # Also update yearly diary list
                 if year not in diaries_by_year:
                     diaries_by_year[year] = []
                 diaries_by_year[year].extend(diaries)
 
-        # 保存该年的原文
+        # Save original text for this year
         if year in diaries_by_year:
-            print(f"  正在保存 {year} 年原文到文件...")
+            print(f"  Saving original text for year {year} to file...")
             save_original_diaries_to_file(year, diaries_by_year[year])
 
     return diaries_by_year, diaries_by_year_month
 
 
 def generate_monthly_summaries_for_year(year, month_diaries, anthropic_client):
-    """为一年中的所有月份生成或加载摘要
+    """Generate or load summaries for all months in a year
 
-    参数:
-        year: 年份
-        month_diaries: 按月分组的日记 {month: [diaries]}
-        anthropic_client: Claude API客户端
+    Args:
+        year: The year
+        month_diaries: Diaries grouped by month {month: [diaries]}
+        anthropic_client: Claude API client
 
-    返回: {month: summary} 字典
+    Returns: Dictionary of {month: summary}
     """
     monthly_summaries = {}
 
     for month in sorted(month_diaries.keys()):
-        # 检查月度总结是否已存在
+        # Check if monthly summary already exists
         year_dir = OUTPUT_DIR / str(year)
         monthly_file = year_dir / f"{year}年{month}月_summary.txt"
 
         if monthly_file.exists():
-            print(f"  {month} 月总结已存在，跳过生成: {monthly_file}")
+            print(f"  Summary for month {month} already exists, skipping generation: {monthly_file}")
             cached_monthly = load_monthly_summary_from_file(year, month)
             if cached_monthly:
                 monthly_summaries[month] = cached_monthly
         else:
-            print(f"  处理 {month} 月...")
-            # 生成月度摘要
+            print(f"  Processing month {month}...")
+            # Generate monthly summary
             summary = generate_monthly_summary(year, month, month_diaries[month], anthropic_client)
             monthly_summaries[month] = summary
             save_monthly_summary_to_file(year, month, summary)
@@ -173,30 +173,30 @@ def generate_monthly_summaries_for_year(year, month_diaries, anthropic_client):
 
 
 def process_year_summaries(year, diaries_by_year, diaries_by_year_month, use_cache_only, anthropic_client):
-    """处理一年的月度和年度摘要
+    """Process monthly and yearly summaries for a given year
 
-    参数:
-        year: 年份
-        diaries_by_year: 按年分组的日记
-        diaries_by_year_month: 按年月分组的日记
-        use_cache_only: 是否仅使用缓存
-        anthropic_client: Claude API客户端
+    Args:
+        year: The year
+        diaries_by_year: Diaries grouped by year
+        diaries_by_year_month: Diaries grouped by year and month
+        use_cache_only: Whether to use cache only
+        anthropic_client: Claude API client
     """
-    print(f"\n处理 {year} 年...")
+    print(f"\nProcessing year {year}...")
 
-    # 检查年度摘要文件是否已存在
+    # Check if yearly summary file already exists
     yearly_summary_file = OUTPUT_DIR / f"{year}_summary.txt"
     if yearly_summary_file.exists():
-        print(f"  {year} 年的年度摘要已存在，跳过: {yearly_summary_file}")
+        print(f"  Yearly summary for {year} already exists, skipping: {yearly_summary_file}")
         return
 
-    # 第一步：为每个月生成摘要
+    # Step 1: Generate summaries for each month
     if use_cache_only:
-        # 从缓存加载的情况，需要先按月分组日记
-        print(f"  正在按月分组 {year} 年的日记...")
+        # When loading from cache, need to group diaries by month first
+        print(f"  Grouping diaries for year {year} by month...")
         year_diaries = diaries_by_year[year]
 
-        # 按月分组
+        # Group by month
         month_diaries = defaultdict(list)
         for diary in year_diaries:
             year_month, month = extract_year_month_from_path(diary.get('path', diary['filename']))
@@ -205,7 +205,7 @@ def process_year_summaries(year, diaries_by_year, diaries_by_year_month, use_cac
 
         monthly_summaries = generate_monthly_summaries_for_year(year, month_diaries, anthropic_client)
     else:
-        # Drive扫描模式，已经按月分组
+        # Drive scan mode, already grouped by month
         if year in diaries_by_year_month:
             monthly_summaries = generate_monthly_summaries_for_year(
                 year, diaries_by_year_month[year], anthropic_client
@@ -213,39 +213,39 @@ def process_year_summaries(year, diaries_by_year, diaries_by_year_month, use_cac
         else:
             monthly_summaries = {}
 
-    # 第二步：基于月度摘要生成年度总结
+    # Step 2: Generate yearly summary based on monthly summaries
     if monthly_summaries:
-        print(f"\n  基于 {len(monthly_summaries)} 个月的摘要生成年度总结...")
+        print(f"\n  Generating yearly summary based on {len(monthly_summaries)} monthly summaries...")
         yearly_summary = generate_yearly_summary_from_monthly(year, monthly_summaries, anthropic_client)
         save_summary_to_file(year, yearly_summary)
     else:
-        print(f"  警告: {year} 年没有月度摘要，跳过年度总结生成")
+        print(f"  Warning: No monthly summaries for year {year}, skipping yearly summary generation")
 
 
 def run():
-    """主函数"""
+    """Main function"""
     print("=" * 60)
-    print("日记汇总工具")
+    print("Diary Summary Tool")
     print("=" * 60)
     print()
 
-    # 1. 检查环境变量
+    # 1. Check environment variables
     api_key = os.getenv('ANTHROPIC_API_KEY')
     if not api_key:
-        print("错误: 未找到ANTHROPIC_API_KEY环境变量")
-        print("请在.env文件中设置您的Claude API密钥")
+        print("Error: ANTHROPIC_API_KEY environment variable not found")
+        print("Please set your Claude API key in the .env file")
         return
 
     if not FOLDER_ID:
-        print("错误: 未找到FOLDER_ID环境变量")
-        print("请在.env文件中设置Google Drive文件夹ID")
+        print("Error: FOLDER_ID environment variable not found")
+        print("Please set the Google Drive folder ID in the .env file")
         return
 
-    # 2. 检查缓存并选择处理模式
+    # 2. Check cache and select processing mode
     cached_years = check_cached_years()
     use_cache_only = prompt_user_for_mode(cached_years)
 
-    # 3. 加载日记内容
+    # 3. Load diary content
     diaries_by_year_month = None
     if use_cache_only:
         diaries_by_year = load_diaries_from_cache(cached_years)
@@ -255,22 +255,22 @@ def run():
             return
 
     if not diaries_by_year:
-        print("没有成功读取任何日记内容，程序退出")
+        print("Failed to read any diary content, exiting program")
         return
 
-    # 4. 初始化Claude客户端
+    # 4. Initialize Claude client
     next_step = 2 if use_cache_only else 5
-    print(f"\n{next_step}. 初始化Claude客户端...")
+    print(f"\n{next_step}. Initializing Claude client...")
     anthropic_client = Anthropic(api_key=api_key)
 
-    # 5. 生成月度和年度摘要
+    # 5. Generate monthly and yearly summaries
     next_step += 1
-    print(f"\n{next_step}. 开始生成月度和年度AI摘要...")
+    print(f"\n{next_step}. Starting to generate monthly and yearly AI summaries...")
 
     for year in sorted(diaries_by_year.keys()):
         process_year_summaries(year, diaries_by_year, diaries_by_year_month, use_cache_only, anthropic_client)
 
     print("\n" + "=" * 60)
-    print("所有处理完成！")
-    print(f"输出目录: {OUTPUT_DIR.absolute()}")
+    print("All processing complete!")
+    print(f"Output directory: {OUTPUT_DIR.absolute()}")
     print("=" * 60)

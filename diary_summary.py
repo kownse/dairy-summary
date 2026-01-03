@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-日记汇总工具 - 从Google Drive获取日记并生成年度AI摘要
+Diary Summary Tool - Fetch diaries from Google Drive and generate annual AI summaries
 """
 
 from diary_summary import run
