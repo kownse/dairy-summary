@@ -19,7 +19,7 @@ FOLDER_ID = os.getenv('FOLDER_ID')
 OUTPUT_DIR = Path('output')
 
 # Claude API configuration
-CLAUDE_MODEL = "claude-sonnet-4-5-20250929"
+CLAUDE_MODEL = "claude-sonnet-4-6"
 MAX_TOKENS = 4096
 
 # Rate limit configuration
